@@ -1,0 +1,5 @@
+cdb_hash.o: cdb_hash.cc config.h cdb.h
+
+config.h:
+
+cdb.h:
