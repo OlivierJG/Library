@@ -1,0 +1,22 @@
+Use cases:
+    a. Looking for a specific document, title known
+      Marginal importance. Browse-mode filter should cover this.
+    b. Looking for a specific document, title unknown/Looking for the originating document(s) of a quote
+      High-priority. While a good quote should put the document at/near the top of any search, in some cases filtering results by folder/type, or even size may prove very useful.
+      Any filtering would usually be simple, limited to eg, one folder, one type
+    c. Looking for any documents that discuss given topic ("googley search")
+      High Priority. More advanced filtering may be useful.
+
+Notes:
+    Based on use cases, advanced queries, with the exception of the quoted term, will be rarely used (not a, possibly b & c, but only by advanced power users)
+
+Interfaces:
+    TreeView, no sorting, no filtering, scroll to get more
+	a: Covered adequately
+	b: Somewhat wanting. Lack of filters could result in deluge of unwanted document types/categories in some cases
+	c: Functional, but lack of filtering, sorting would hurt at times
+    TreeView with simple filter, no sorting, scroll to get more
+	a: Covered adequately
+	b: Covered adequately
+	c: Functional, but lack of filtering, sorting would hurt at times
+    TreeView
