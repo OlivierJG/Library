@@ -30,7 +30,7 @@ private:
     void clearAllItems();
     void filterItems();
     void searchForItems();
-    SearchItem* searchItemFromFile(QString filePath, int score);
+    SearchItem searchItemFromFile(QString filePath, int score);
 
     Xapian::Database m_xapianDb;
     Xapian::Enquire m_xapianEnquire;
@@ -43,8 +43,8 @@ private:
     QString m_searchText; //Modified outside of thread, rw lock
     QString m_filterText; //Modified outside of thread, rw lock
     QString m_filesPath;
-    QList<SearchItem*> m_foundItems; //Read outside of thread, w lock
-    QList<SearchItem*> m_filteredItems;
+    QList<SearchItem> m_foundItems; //Read outside of thread, w lock
+    QList<SearchItem> m_filteredItems;
     //Modified outside of thread, but no need to lock
     volatile bool m_finished;
     volatile bool m_searchTextChanged;

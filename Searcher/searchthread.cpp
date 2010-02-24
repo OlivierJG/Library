@@ -1,33 +1,9 @@
 #include "searchthread.h"
-#include <QLocale>
-#include <QDate>
 
 //When searching, update model every this many items found
 const int RESULT_BURST_COUNT = 50;
 //When searching, display at most this many results
 const int MAX_RESULT_COUNT = 500;
-
-//Function contents shamelessly ripped from Qt's qdirmodel.cpp 4.5.3 implementation
-//in order to match with the QFileSystemModel
-QString humanReadableForBytes(quint64 bytes)
-{
-    // According to the Si standard KB is 1000 bytes, KiB is 1024
-    // but on windows sizes are calulated by dividing by 1024 so we do what they do.
-    const quint64 kb = 1024;
-    const quint64 mb = 1024 * kb;
-    const quint64 gb = 1024 * mb;
-    const quint64 tb = 1024 * gb;
-
-    if (bytes >= tb)
-        return QLocale().toString(bytes / tb) + QString::fromLatin1(" TB");
-    if (bytes >= gb)
-        return QLocale().toString(bytes / gb) + QString::fromLatin1(" GB");
-    if (bytes >= mb)
-        return QLocale().toString(bytes / mb) + QString::fromLatin1(" MB");
-    if (bytes >= kb)
-        return QLocale().toString(bytes / kb) + QString::fromLatin1(" KB");
-    return QLocale().toString(bytes) + QString::fromLatin1(" bytes");
-}
 
 SearchThread::SearchThread(QString dbPath, QString filesPath, QObject* parent):
 QThread(parent),
@@ -73,46 +49,54 @@ void SearchThread::run()
 void SearchThread::clearAllItems()
 {
     QMutexLocker locker(&m_foundItemsMutex);
-    while (!m_foundItems.isEmpty())
-        delete m_foundItems.takeLast();
-    while (!m_filteredItems.isEmpty())
-        delete m_filteredItems.takeLast();
-    emit resultCountChanged(m_foundItems.size());
+    m_foundItems.clear();
+    m_filteredItems.clear();
+    //Looks like flicker, no need
+    //emit resultCountChanged(m_foundItems.size());
 }
 
 void SearchThread::filterItems()
 {
     int curItems = m_foundItems.size();
-    //First remove non-matching items
-    for (int i = m_foundItems.size() - 1; i >= 0 ; i--)
+    QString filterText;
     {
-        if (!m_foundItems[i]->url.contains(m_filterText))
+        QMutexLocker locker(&m_filterTextMutex);
+        filterText = m_filterText;
+    }
+    //First remove non-matching items
+    for (int i = m_foundItems.size() - 1; i >= 0 ; --i)
+    {
+        if (!m_foundItems[i].passesFilter(filterText))
         {
             QMutexLocker locker(&m_foundItemsMutex);
             m_filteredItems.append(m_foundItems.takeAt(i));
         }
     }
     //Then check that filtered items should remain filtered
-    for (int i = m_filteredItems.size() - 1; i >= 0; i--)
+    for (int i = m_filteredItems.size() - 1; i >= 0; --i)
     {
-        if (m_filteredItems[i]->url.contains(m_filterText))
+        if (m_filteredItems[i].passesFilter(filterText))
         {
             QMutexLocker locker(&m_foundItemsMutex);
             m_foundItems.append(m_filteredItems.takeAt(i));
         }
     }
+
+    QMutexLocker locker(&m_foundItemsMutex);
+    if(m_foundItems.size() > 1)
+    {
+        qSort(m_foundItems.begin(), m_foundItems.end());
+    }
     //Notify if changed
     if (curItems != m_foundItems.size())
-    {
         emit resultCountChanged(m_foundItems.size());
-    }
 }
 
 void SearchThread::searchForItems()
 {
     Xapian::Query xapianQuery;
     {
-        QMutexLocker locker(&m_searchTextMutex);
+        QMutexLocker searchTextLocker(&m_searchTextMutex);
         xapianQuery = m_xapianQueryParser.parse_query(m_searchText.toStdString());
     }
 
@@ -121,7 +105,7 @@ void SearchThread::searchForItems()
 
     Xapian::MSetIterator i;
     for (i = m_xapianMatchSet.begin(); i != m_xapianMatchSet.end(); ++i) {
-        if (m_searchTextChanged || m_finished || m_foundItems.size() == MAX_RESULT_COUNT)
+        if (m_searchTextChanged || m_finished || (m_foundItems.size() + m_filteredItems.size()) == MAX_RESULT_COUNT)
             break;
 
         Xapian::Document doc = i.get_document();
@@ -129,22 +113,26 @@ void SearchThread::searchForItems()
 
         {
             QMutexLocker itemsLocker(&m_foundItemsMutex);
-            SearchItem *newItem = searchItemFromFile(url, (int)i.get_percent());
-            m_foundItems << newItem;
+            QMutexLocker filterTextLocker(&m_filterTextMutex);
+            SearchItem newItem = searchItemFromFile(url, (int)i.get_percent());
+            if (newItem.passesFilter(m_filterText))
+                m_foundItems << newItem;
+            else
+                m_filteredItems << newItem;
         }
 
         if (m_foundItems.size() % RESULT_BURST_COUNT == 0)
         {
             emit resultCountChanged(m_foundItems.size());
-            msleep(10); //Allow time for thread owner to respond to changes
+             //Allow time for thread owner to respond to changes
+            if (m_foundItems.size() == RESULT_BURST_COUNT)
+                msleep(150); //wait longer on the first to reduce flicker
+            else
+                msleep(10);
         }
     }
 
-
     emit resultCountChanged(m_foundItems.size());
-
-    if (!m_filterText.isEmpty())
-        filterItems();
 }
 
 void SearchThread::finish()
@@ -152,19 +140,19 @@ void SearchThread::finish()
     m_finished = true;
 }
 
-SearchItem* SearchThread::searchItemFromFile(QString filePath, int score)
+SearchItem SearchThread::searchItemFromFile(QString filePath, int score)
 {
-    SearchItem* newItem = new SearchItem;
+    SearchItem newItem;
     QFileInfo fileInfo(filePath);
 
-    newItem->score = score;
+    newItem.score = score;
 
-    newItem->url = fileInfo.fileName();
-    newItem->icon = m_iconProvider.icon(fileInfo);
+    newItem.url = fileInfo.absoluteFilePath();
+    newItem.icon = m_iconProvider.icon(fileInfo);
 
-    newItem->size = humanReadableForBytes(fileInfo.size());
-    newItem->type = m_iconProvider.type(fileInfo);
-    newItem->modified = fileInfo.lastModified().toString();
+    newItem.size = fileInfo.size();
+    newItem.type = m_iconProvider.type(fileInfo);
+    newItem.modified = fileInfo.lastModified();
 
     return newItem;
 }

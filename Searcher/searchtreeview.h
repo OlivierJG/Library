@@ -9,6 +9,7 @@
 class SearchTreeView : public QTreeView
 {
 public:
+    virtual void setModel(QAbstractItemModel* model);
     SearchTreeView(QWidget* parent = 0);
 };
 

@@ -30,32 +30,7 @@ QVariant SearchModel::data(const QModelIndex& index, int role) const
 {
     SearchItem searchItem(m_searchThread->getSearchResult(index.row()));
 
-    if (searchItem.isValid())
-    {
-        if (role == Qt::DisplayRole)
-        {
-            switch (index.column())
-            {
-                case 0: //Score
-                    return QVariant( searchItem.score );
-                case 1: //Name
-                    return QVariant( searchItem.url );
-                case 2: //Size
-                    return QVariant( searchItem.size );
-                case 3: //Type
-                    return QVariant( searchItem.type );
-                case 4: //Date Modified
-                    return QVariant( searchItem.modified );
-            }
-        }
-        else if (role == Qt::DecorationRole)
-        {
-            if (index.column() == 1) //Name
-                return QVariant( searchItem.icon );
-        }
-    }
-
-    return QVariant();
+    return searchItem.dataForColumn(index.column(), role);
 }
 
 QModelIndex SearchModel::index(int row, int column, const QModelIndex& parent) const
