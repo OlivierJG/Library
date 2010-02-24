@@ -54,8 +54,7 @@ QVariant SearchModel::data(const QModelIndex& index, int role) const
                 return QVariant( searchItem.icon );
         }
     }
-    else
-        fprintf(stderr, "invalid item\n");
+
     return QVariant();
 }
 

@@ -65,6 +65,8 @@ void SearchThread::run()
             m_filterTextChanged = false;
             filterItems();
         }
+
+        msleep(10); //No need to hammer the processor
     }
 }
 
