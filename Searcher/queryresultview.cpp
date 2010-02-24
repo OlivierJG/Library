@@ -1,5 +1,5 @@
 #include "queryresultview.h"
-#include <QScrollBar>
+#include <QtGui/QScrollBar>
 
 QueryResultView::QueryResultView(QString urlBasePath, QWidget* parent): QTextBrowser(parent), m_resultCount(0)
 {
@@ -21,29 +21,13 @@ void QueryResultView::addResult(QString dbDescription, int score)
 
 QString QueryResultView::getHtmlForResult(QString dbDescription, int score)
 {
-    QString url;
-    QString title;
-    QString type;
-    int size;
 
-    QStringList queryProperties = dbDescription.split("\n");
-    foreach(QString queryProperty, queryProperties)
-    {
-        if (queryProperty.contains("url="))
-            url = queryProperty.remove("url=/"); //Remove the leading "/" TODO: remove it in the indexer
-        if (queryProperty.contains("caption="))
-            title = queryProperty.remove("caption=");
-        if (queryProperty.contains("type="))
-            type = queryProperty.remove("type=");
-        if (queryProperty.contains("size="))
-            size = queryProperty.remove("size=").toInt();
-    }
 
     QString htmlText;
-    htmlText += "<b>" + title + "</b><br/>\n";
+/*    htmlText += "<b>" + title + "</b><br/>\n";
     htmlText += "<a href=\"" + url + "\">" + url + "</a><br/>\n";
     htmlText += "Type: " + type + ", Size: " + QString::number(size) + "<br/>\n";
-    htmlText += "Match Rating: <b>" + QString::number(score) + "%</b><br/>\n";
+    htmlText += "Match Rating: <b>" + QString::number(score) + "%</b><br/>\n";*/
 
     return htmlText;
 }

@@ -20,3 +20,7 @@ Interfaces:
 	b: Covered adequately
 	c: Functional, but lack of filtering, sorting would hurt at times
     TreeView
+
+
+TODO:
+    Allow jumping from search to the same file in browse mode

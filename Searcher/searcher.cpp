@@ -3,104 +3,83 @@
 #include <QApplication>
 #include <QHBoxLayout>
 #include <QScrollBar>
-#include <QMessageBox>
 
 Searcher::Searcher()
 {
-    try {
-        initXapian();
-    }
-    catch (const Xapian::Error & error) {
-        cout << "Xapian Exception: " << error.get_msg() << endl;
-    }
-    catch (const SearchError & error) {
-        cout << error.message.toLatin1().data() << endl;
-    }
+    m_libPath = "../../Library/";
 
-    QWidget *window = new QWidget;
-    setCentralWidget(window);
+    resize(500,500);
 
-    m_searchText = new QLineEdit(centralWidget());
-    m_queryResults = new QueryResultView("/home/louis/Projects/Reading/Library", centralWidget());
-    m_searchInfo = new QLineEdit(centralWidget());
-    m_searchInfo->setReadOnly(true);
-    m_browserSearch = new QLineEdit(centralWidget());
+    m_searchModel = new SearchModel("../../.libindex/", m_libPath, this);
+
+    m_fileSystemModel = new QFileSystemModel(this);
+    m_fileSystemModel->setRootPath(m_libPath);
+    m_fileSystemModel->setNameFilterDisables(false);
+
+
+    setCentralWidget(new QWidget);
+    m_filterText = new MyLineEdit("Filter...", centralWidget());
+    m_searchText = new MyLineEdit("Search...", centralWidget());
+    m_contextInfo = new QLabel(centralWidget());
+    m_fileSystemTree = new QTreeView(centralWidget());
+    m_fileSystemTree->setModel(m_fileSystemModel);
+    m_fileSystemTree->setRootIndex(m_fileSystemModel->index(m_libPath));
+    m_fileSystemTree->setColumnWidth(0, 300);
+    m_searchResultsTreeView = new SearchTreeView(centralWidget());
+    m_searchResultsTreeView->setModel(m_searchModel);
+    m_searchResultsTreeView->setVisible(false);
 
     QVBoxLayout* layout = new QVBoxLayout();
-    QHBoxLayout* hlayout = new QHBoxLayout();
-    hlayout->addWidget(m_searchText);
-    hlayout->addWidget(m_searchInfo);
-    layout->addLayout(hlayout);
-    layout->addWidget(m_queryResults);
-    layout->addWidget(m_browserSearch);
+    layout->addWidget(m_contextInfo);
+    layout->addWidget(m_fileSystemTree);
+    layout->addWidget(m_searchResultsTreeView);
+    layout->addWidget(m_filterText);
+    layout->addWidget(m_searchText);
     centralWidget()->setLayout(layout);
 
-    connect(m_searchText, SIGNAL(textChanged(QString)), this, SLOT(updateSearchQuery(QString)));
-    connect(m_queryResults, SIGNAL(scrolledToEnd()), this, SLOT(getMoreQueryResults()));
-    connect(m_queryResults, SIGNAL(resized()), this, SLOT(fillResultsWidget()));
-    connect(m_browserSearch, SIGNAL(textChanged(QString)), this, SLOT(searchInBrowser(QString)));
-    connect(m_browserSearch, SIGNAL(returnPressed()), this, SLOT(searchInBrowserNext()));
+    connect(m_searchText, SIGNAL(textChanged(QString)), this, SLOT(searchTextChanged(QString)));
+    connect(m_filterText, SIGNAL(textChanged(QString)), this, SLOT(filterTextChanged(QString)));
+    connect(m_searchModel, SIGNAL(rowsInserted(const QModelIndex,int,int)), this, SLOT(updateContextInfo()));
+    connect(m_searchModel, SIGNAL(rowsRemoved(const QModelIndex,int,int)), this, SLOT(updateContextInfo()));
+
+    updateContextInfo();
 }
 
-void Searcher::initXapian()
+void Searcher::searchTextChanged(QString text)
 {
-    QString dbPath;
-    if (QApplication::arguments().size() > 1)
-        dbPath = QApplication::arguments()[1];
+    m_searchModel->updateSearchText(text);
+    updateCurrentViewMode();
+    updateContextInfo();
+}
+
+void Searcher::filterTextChanged(QString text)
+{
+    m_searchModel->updateFilterText(text);
+}
+
+void Searcher::updateContextInfo()
+{
+    if (m_searchResultsTreeView->isVisible())
+        m_contextInfo->setText(QString::number(m_searchModel->rowCount()) +
+                               " result" +
+                               (m_searchModel->rowCount() == 1 ? " from" : "s from") +
+                               m_libPath);
     else
-        throw SearchError("Requires path to database as argument", this);
-
-    m_xapianDb = new Xapian::Database(dbPath.toStdString());
-    m_xapianEnquire = new Xapian::Enquire(*m_xapianDb);
-    m_xapianQueryParser = new Xapian::QueryParser();
+        m_contextInfo->setText("Browsing Library in " + m_libPath);
 }
 
-void Searcher::updateSearchQuery(QString query)
+void Searcher::updateCurrentViewMode()
 {
-    Xapian::Query xapianQuery = m_xapianQueryParser->parse_query(query.toStdString());
+    bool showSearch = true;
 
-    m_xapianEnquire->set_query(xapianQuery);
+    if (m_searchText->text().isEmpty())
+        showSearch = false;
 
-    m_queryResults->clear();
-    fillResultsWidget();
+    m_fileSystemTree->setVisible(!showSearch);
+    m_searchResultsTreeView->setVisible(showSearch);
 }
 
-void Searcher::updateSearchInfo()
-{
-    m_searchInfo->setText("Showing " +
-                          QString::number(m_queryResults->resultCount()) +
-                          " of approximately " +
-                          QString::number(m_xapianMatchSet.get_matches_estimated()) +
-                          (m_xapianMatchSet.get_matches_estimated() == 1 ? " result" : " results"));
-}
-
-void Searcher::getMoreQueryResults()
-{
-    m_xapianMatchSet = m_xapianEnquire->get_mset(m_queryResults->resultCount(), 1);
-
-    Xapian::MSetIterator i;
-    for (i = m_xapianMatchSet.begin(); i != m_xapianMatchSet.end(); ++i) {
-        Xapian::Document doc = i.get_document();
-        m_queryResults->addResult(doc.get_data().c_str(), i.get_percent());
-    }
-
-    updateSearchInfo();
-}
-
-void Searcher::fillResultsWidget()
-{
-    int currentResults = 0;
-    while (m_queryResults->document()->size().height() < m_queryResults->contentsRect().height())
-    {
-        getMoreQueryResults();
-        if (currentResults == m_queryResults->resultCount())
-            break;
-        else
-            currentResults = m_queryResults->resultCount();
-    }
-}
-
-void Searcher::searchInBrowser(QString text, bool findNext)
+/*void Searcher::searchInBrowser(QString text, bool findNext)
 {
     if (!findNext)
     {
@@ -132,18 +111,10 @@ void Searcher::searchInBrowser(QString text, bool findNext)
 void Searcher::searchInBrowserNext()
 {
     searchInBrowser(m_browserSearch->text(), true);
-}
+}*/
 
 Searcher::~Searcher()
 {
-    if (m_xapianDb)
-        delete m_xapianDb;
-    
-    if (m_xapianEnquire)
-        delete m_xapianEnquire;
-
-    if (m_xapianQueryParser)
-        delete m_xapianQueryParser;
 }
 
 #include "searcher.moc"

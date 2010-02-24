@@ -1,66 +1,123 @@
 #include "searchmodel.h"
 #include <QFileInfo>
-#include <QDate>
+#include <QBrush>
 
-const int GET_MORE_RESULTS_COUNT = 5;
+const char* MODEL_HEADERS[] = {"Score", "Name", "Size", "Type", "Modified"};
 
 SearchModel::SearchModel(QString dbPath, QString filesPath, QObject* parent):
-    QStandardItemModel(parent),
-    m_xapianDb(dbPath.toStdString()),
-    m_xapianEnquire(m_xapianDb),
-    m_filesPath(filesPath),
-    m_iconProvider()
+QAbstractItemModel(parent), m_resultCount(0), m_filterColumn(1)
 {
-    setHorizontalHeaderText();
+    m_searchThread = new SearchThread(dbPath, filesPath, this);
+
+    connect(m_searchThread, SIGNAL(resultCountChanged(int)), SLOT(resultCountChanged(int)));
+
+    m_searchThread->start();
 }
 
-void SearchModel::setHorizontalHeaderText()
+SearchModel::~SearchModel()
 {
-    setHorizontalHeaderLabels(QStringList() << "Score" << "Name" << "Size" << "Type" << "Date Modified");
+    m_searchThread->finish();
+    m_searchThread->wait();
+    delete m_searchThread;
 }
 
-int SearchModel::estimatedResultCount()
+int SearchModel::columnCount(const QModelIndex& parent) const
 {
-    return m_xapianMatchSet.get_matches_estimated();
+    return sizeof(MODEL_HEADERS)/sizeof(char *);
 }
 
-void SearchModel::getMoreResults()
+QVariant SearchModel::data(const QModelIndex& index, int role) const
 {
-    m_xapianMatchSet = m_xapianEnquire.get_mset(rowCount(), GET_MORE_RESULTS_COUNT);
+    SearchItem searchItem(m_searchThread->getSearchResult(index.row()));
 
-    Xapian::MSetIterator i;
-    for (i = m_xapianMatchSet.begin(); i != m_xapianMatchSet.end(); ++i) {
-        Xapian::Document doc = i.get_document();
-        QStringList queryProperties = QString(doc.get_data().c_str()).split("\n");
-        QString url;
-        foreach(QString queryProperty, queryProperties)
+    if (searchItem.isValid())
+    {
+        if (role == Qt::DisplayRole)
         {
-            if (queryProperty.contains("url=/"))
-                url = queryProperty.remove("url=/");
+            switch (index.column())
+            {
+                case 0: //Score
+                    return QVariant( searchItem.score );
+                case 1: //Name
+                    return QVariant( searchItem.url );
+                case 2: //Size
+                    return QVariant( searchItem.size );
+                case 3: //Type
+                    return QVariant( searchItem.type );
+                case 4: //Date Modified
+                    return QVariant( searchItem.modified );
+            }
         }
-        QFileInfo fileInfo(m_filesPath + url);
-        QList<QStandardItem*> queryItems;
-
-        queryItems << new QStandardItem(QString::number(i.get_percent()));
-
-        QStandardItem* name = new QStandardItem(fileInfo.fileName());
-        name->setIcon(m_iconProvider.icon(fileInfo));
-        queryItems << name;
-
-        queryItems << new QStandardItem(QString::number(fileInfo.size()));
-        queryItems << new QStandardItem(m_iconProvider.type(fileInfo));
-        queryItems << new QStandardItem(fileInfo.lastModified().toString());
-
-        appendRow(queryItems);
+        else if (role == Qt::DecorationRole)
+        {
+            if (index.column() == 1) //Name
+                return QVariant( searchItem.icon );
+        }
     }
+    else
+        fprintf(stderr, "invalid item\n");
+    return QVariant();
+}
+
+QModelIndex SearchModel::index(int row, int column, const QModelIndex& parent) const
+{
+    return createIndex(row, column, 0);
+}
+
+QModelIndex SearchModel::parent(const QModelIndex& index) const
+{
+    return QModelIndex();
+}
+
+int SearchModel::rowCount(const QModelIndex& parent) const
+{
+    return m_resultCount;
 }
 
 void SearchModel::updateSearchText(QString newText)
 {
-    Xapian::Query xapianQuery = m_xapianQueryParser.parse_query(newText.toStdString());
-    m_xapianEnquire.set_query(xapianQuery);
-    clear();
-    setHorizontalHeaderText();
+    m_searchThread->setSearchText(newText);
+}
+
+void SearchModel::updateFilterText(QString newText)
+{
+    m_searchThread->setFilterText(newText);
+}
+
+void SearchModel::resultCountChanged(int newCount)
+{
+    if (newCount > m_resultCount)
+    {
+        beginInsertRows(QModelIndex(), m_resultCount, newCount - 1);
+        m_resultCount = newCount;
+        endInsertRows();
+    }
+    else if (newCount < m_resultCount)
+    {
+        beginRemoveRows(QModelIndex(), newCount, m_resultCount - 1);
+        m_resultCount = newCount;
+        endRemoveRows();
+    }
+}
+
+Qt::ItemFlags SearchModel::flags(const QModelIndex& index) const
+{
+    return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+}
+
+QVariant SearchModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if (role == Qt::DisplayRole)
+        return QVariant(MODEL_HEADERS[section]);
+    else if (role == Qt::DecorationRole && section == m_filterColumn)
+        return QIcon::fromTheme("edit-find");
+    else
+        return QVariant();
+}
+
+bool SearchModel::hasChildren(const QModelIndex& parent) const
+{
+    return (parent == QModelIndex());
 }
 
 #include "searchmodel.moc"

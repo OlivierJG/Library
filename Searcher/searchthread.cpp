@@ -4,6 +4,8 @@
 
 //When searching, update model every this many items found
 const int RESULT_BURST_COUNT = 50;
+//When searching, display at most this many results
+const int MAX_RESULT_COUNT = 500;
 
 //Function contents shamelessly ripped from Qt's qdirmodel.cpp 4.5.3 implementation
 //in order to match with the QFileSystemModel
@@ -100,7 +102,6 @@ void SearchThread::filterItems()
     //Notify if changed
     if (curItems != m_foundItems.size())
     {
-        QMutexLocker locker(&m_foundItemsMutex);
         emit resultCountChanged(m_foundItems.size());
     }
 }
@@ -118,7 +119,7 @@ void SearchThread::searchForItems()
 
     Xapian::MSetIterator i;
     for (i = m_xapianMatchSet.begin(); i != m_xapianMatchSet.end(); ++i) {
-        if (m_searchTextChanged || m_finished)
+        if (m_searchTextChanged || m_finished || m_foundItems.size() == MAX_RESULT_COUNT)
             break;
 
         Xapian::Document doc = i.get_document();
@@ -137,7 +138,11 @@ void SearchThread::searchForItems()
         }
     }
 
+
     emit resultCountChanged(m_foundItems.size());
+
+    if (!m_filterText.isEmpty())
+        filterItems();
 }
 
 void SearchThread::finish()
@@ -164,6 +169,7 @@ SearchItem* SearchThread::searchItemFromFile(QString filePath, int score)
 
 SearchItem SearchThread::getSearchResult(int resultIndex) const
 {
+    QMutexLocker locker(&m_foundItemsMutex);
     if (m_foundItems.size() > resultIndex)
         return SearchItem(m_foundItems[resultIndex]);
     else

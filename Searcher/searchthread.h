@@ -10,6 +10,11 @@
 
 class SearchThread : public QThread
 {
+/* Data needs to be locked as follows:
+ * rw lock: Read and written directly from outside thread, lock at every use
+ * w lock: Read directly from outside thread, lock whenever changed, and at points of outside access
+ * No need to lock: Boolean variables cannot be invalid, and an incorrect value is meaningless
+ */
 Q_OBJECT
 public:
     SearchThread(QString dbPath, QString filesPath, QObject* parent = 0);

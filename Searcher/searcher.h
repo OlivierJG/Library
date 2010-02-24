@@ -1,15 +1,18 @@
 #ifndef Searcher_H
 #define Searcher_H
 
-#include <QtGui/QMainWindow>
-#include <QtGui/QLineEdit>
-#include <QtGui/QLabel>
+#include <QMainWindow>
+#include <QLabel>
 #include <QTreeView>
-#include <QtGui/QTextEdit>
+#include <QFileSystemModel>
 #include <xapian.h>
-#include <iostream>
 
 #include "queryresultview.h"
+#include "searchmodel.h"
+#include "mylineedit.h"
+#include "searchtreeview.h"
+
+#include <ktreewidgetsearchline.h>
 
 using namespace std;
 
@@ -18,37 +21,24 @@ class Searcher : public QMainWindow
 Q_OBJECT
 public:
     Searcher();
-    bool hasException() { return m_hasException; }
     virtual ~Searcher();
 private:
-    QLineEdit* m_searchText;
-    QLineEdit* m_searchInfo;
-    QLineEdit* m_browserSearch;
-    QTreeView* m_fileBrowser;
-    QueryResultView* m_queryResults;
-    Xapian::Database* m_xapianDb;
-    Xapian::Enquire* m_xapianEnquire;
-    Xapian::QueryParser* m_xapianQueryParser;
-    Xapian::MSet m_xapianMatchSet;
-    bool m_hasException;
+    void updateCurrentViewMode();
 
-    void initXapian();
-    void updateSearchInfo();
+    MyLineEdit* m_searchText;
+    MyLineEdit* m_filterText;
+    QLabel* m_contextInfo;
+    QTreeView* m_fileSystemTree;
+    SearchTreeView* m_searchResultsTreeView;
 
-    friend struct SearchError;
-    struct SearchError {
-        SearchError(QString errorMessage, Searcher* searcher) {
-            searcher->m_hasException = true;
-            message = errorMessage;
-        }
-        QString message;
-    };
+    QFileSystemModel* m_fileSystemModel;
+    SearchModel* m_searchModel;
+
+    QString m_libPath;
 private slots:
-    void updateSearchQuery(QString query);
-    void getMoreQueryResults();
-    void fillResultsWidget();
-    void searchInBrowser(QString text, bool findNext = false);
-    void searchInBrowserNext();
+    void updateContextInfo();
+    void searchTextChanged(QString text);
+    void filterTextChanged(QString text);
 };
 
 #endif // Searcher_H
