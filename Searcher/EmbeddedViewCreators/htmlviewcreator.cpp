@@ -14,27 +14,20 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#include "htmlviewcreator.h"
 
-#ifndef SEARCHTREEVIEW_H
-#define SEARCHTREEVIEW_H
-
-#include <QtGui/QTreeView>
-#include <QApplication>
-#include <QEvent>
-
-#include "searchmodel.h"
-#include "searchitem.h"
-
-class SearchTreeView : public QTreeView
+QStringList HtmlViewCreator::handledMimeTypes()
 {
-Q_OBJECT
-public:
-    virtual void setModel(SearchModel* model);
-    SearchTreeView(QWidget* parent = 0);
-signals:
-    void openItem(QString url, QString type, QString displayName, QIcon icon);
-private slots:
-    void itemDoubleClicked(QModelIndex item);
-};
+    return QStringList() << "htm" << "html";
+}
 
-#endif // SEARCHTREEVIEW_H
+QWidget* HtmlViewCreator::createViewForFile(QString url, QWidget* parent)
+{
+    QTextBrowser* view = new QTextBrowser(parent);
+    view->setSource(QUrl(url));
+    return view;
+}
+
+Q_EXPORT_PLUGIN2(htmlviewcreator, HtmlViewCreator);
+
+#include "htmlviewcreator.moc"

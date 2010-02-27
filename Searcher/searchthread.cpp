@@ -99,9 +99,9 @@ void SearchThread::filterItems()
         }
     }
 
-    QMutexLocker locker(&m_foundItemsMutex);
     if(m_foundItems.size() > 1)
     {
+        QMutexLocker locker(&m_foundItemsMutex);
         qSort(m_foundItems.begin(), m_foundItems.end());
     }
     //Notify if changed

@@ -19,6 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <QApplication>
 #include <QHBoxLayout>
 #include <QScrollBar>
+#include <QPluginLoader>
+#include <QSplitter>
 
 Searcher::Searcher()
 {
@@ -34,31 +36,48 @@ Searcher::Searcher()
 
 
     setCentralWidget(new QWidget);
-    m_filterText = new MyLineEdit("Filter...", centralWidget());
-    m_searchText = new MyLineEdit("Search...", centralWidget());
-    m_contextInfo = new QLabel(centralWidget());
-    m_fileSystemTree = new QTreeView(centralWidget());
+
+    QSplitter* splitter = new QSplitter(Qt::Horizontal, centralWidget());
+    QWidget* leftWidget = new QWidget(splitter);
+
+    m_filterText = new MyLineEdit("Filter...", leftWidget);
+    m_searchText = new MyLineEdit("Search...", leftWidget);
+    m_contextInfo = new QLabel(leftWidget);
+    m_fileSystemTree = new QTreeView(leftWidget);
     m_fileSystemTree->setModel(m_fileSystemModel);
     m_fileSystemTree->setRootIndex(m_fileSystemModel->index(m_libPath));
     m_fileSystemTree->setColumnWidth(0, 300);
-    m_searchResultsTreeView = new SearchTreeView(centralWidget());
-    m_searchResultsTreeView->setModel(m_searchModel);
-    m_searchResultsTreeView->setVisible(false);
+    m_searchTreeView = new SearchTreeView(leftWidget);
+    m_searchTreeView->setModel(m_searchModel);
+    m_searchTreeView->setVisible(false);
+    m_tabbedFileView = new EmbeddedViewTabber(splitter);
+
+    QVBoxLayout* leftlayout = new QVBoxLayout(leftWidget);
+    leftlayout->addWidget(m_contextInfo);
+    leftlayout->addWidget(m_fileSystemTree);
+    leftlayout->addWidget(m_searchTreeView);
+    leftlayout->addWidget(m_filterText);
+    leftlayout->addWidget(m_searchText);
+    leftWidget->setLayout(leftlayout);
+
+    splitter->addWidget(leftWidget);
+    splitter->addWidget(m_tabbedFileView);
 
     QVBoxLayout* layout = new QVBoxLayout();
-    layout->addWidget(m_contextInfo);
-    layout->addWidget(m_fileSystemTree);
-    layout->addWidget(m_searchResultsTreeView);
-    layout->addWidget(m_filterText);
-    layout->addWidget(m_searchText);
+    layout->setSpacing(0);
+    layout->setContentsMargins(0,0,0,0);
+    layout->addWidget(splitter);
     centralWidget()->setLayout(layout);
 
     connect(m_searchText, SIGNAL(textChanged(QString)), this, SLOT(searchTextChanged(QString)));
     connect(m_filterText, SIGNAL(textChanged(QString)), this, SLOT(filterTextChanged(QString)));
     connect(m_searchModel, SIGNAL(rowsInserted(const QModelIndex,int,int)), this, SLOT(updateContextInfo()));
     connect(m_searchModel, SIGNAL(rowsRemoved(const QModelIndex,int,int)), this, SLOT(updateContextInfo()));
+    connect(m_searchTreeView, SIGNAL(openItem(QString,QString,QString,QIcon)), this,
+            SLOT(searchResultsOpenItem(QString,QString,QString,QIcon)));
 
     updateContextInfo();
+    loadEmbeddedViewCreators();
 }
 
 void Searcher::searchTextChanged(QString text)
@@ -75,13 +94,36 @@ void Searcher::filterTextChanged(QString text)
 
 void Searcher::updateContextInfo()
 {
-    if (m_searchResultsTreeView->isVisible())
+    if (m_searchTreeView->isVisible())
         m_contextInfo->setText(QString::number(m_searchModel->rowCount()) +
                                " result" +
                                (m_searchModel->rowCount() == 1 ? " from" : "s from") +
                                m_libPath);
     else
         m_contextInfo->setText("Browsing Library in " + m_libPath);
+}
+
+void Searcher::loadEmbeddedViewCreators()
+{
+    //Open the directory containing all the embedded viewer plugins
+    QDir embeddedViewCreatorsDir(qApp->applicationDirPath());
+    if (!embeddedViewCreatorsDir.cd("EmbeddedViewCreators"))
+        return;
+
+    //Go through all the files contained therein
+    foreach (QString fileName, embeddedViewCreatorsDir.entryList(QDir::Files))
+    {
+        QPluginLoader pluginLoader(embeddedViewCreatorsDir.absoluteFilePath(fileName));
+        EmbeddedViewCreatorInterface* viewer = qobject_cast<EmbeddedViewCreatorInterface*>(pluginLoader.instance());
+        if (viewer)
+        {
+            //Found a valid plugin, key all it's supported mimetypes to it
+            foreach(QString mimetype, viewer->handledMimeTypes())
+            {
+                m_embeddedViewCreators[mimetype] = viewer;
+            }
+        }
+    }
 }
 
 void Searcher::updateCurrentViewMode()
@@ -92,7 +134,19 @@ void Searcher::updateCurrentViewMode()
         showSearch = false;
 
     m_fileSystemTree->setVisible(!showSearch);
-    m_searchResultsTreeView->setVisible(showSearch);
+    m_searchTreeView->setVisible(showSearch);
+}
+
+void Searcher::searchResultsOpenItem(QString url, QString type, QString name, QIcon icon)
+{
+    EmbeddedViewCreatorInterface* viewer = m_embeddedViewCreators.value(type);
+    if (viewer)
+    {
+        QWidget* view = viewer->createViewForFile(url, m_tabbedFileView);
+        m_tabbedFileView->setCurrentIndex(m_tabbedFileView->addTab(view, icon, name));
+    }
+    else
+        fprintf(stderr, "No viewer loaded for %s files\n", type.toStdString().c_str());
 }
 
 /*void Searcher::searchInBrowser(QString text, bool findNext)

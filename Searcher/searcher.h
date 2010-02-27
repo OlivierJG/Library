@@ -28,8 +28,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "searchmodel.h"
 #include "mylineedit.h"
 #include "searchtreeview.h"
-
-#include <ktreewidgetsearchline.h>
+#include "embeddedviewcreatorinterface.h"
+#include "embeddedviewtabber.h"
 
 using namespace std;
 
@@ -41,21 +41,26 @@ public:
     virtual ~Searcher();
 private:
     void updateCurrentViewMode();
+    void loadEmbeddedViewCreators();
 
     MyLineEdit* m_searchText;
     MyLineEdit* m_filterText;
     QLabel* m_contextInfo;
     QTreeView* m_fileSystemTree;
-    SearchTreeView* m_searchResultsTreeView;
+    SearchTreeView* m_searchTreeView;
+    EmbeddedViewTabber* m_tabbedFileView;
 
     QFileSystemModel* m_fileSystemModel;
     SearchModel* m_searchModel;
 
     QString m_libPath;
+    QMap<QString, EmbeddedViewCreatorInterface*> m_embeddedViewCreators;
 private slots:
     void updateContextInfo();
     void searchTextChanged(QString text);
     void filterTextChanged(QString text);
+public slots:
+    void searchResultsOpenItem(QString url, QString type, QString name, QIcon icon);
 };
 
 #endif // Searcher_H

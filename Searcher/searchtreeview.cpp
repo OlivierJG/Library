@@ -19,13 +19,27 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 SearchTreeView::SearchTreeView(QWidget* parent): QTreeView(parent)
 {
-    setAttribute(Qt::WA_PaintOnScreen);
+    connect(this, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(itemDoubleClicked(QModelIndex)));
 }
 
-void SearchTreeView::setModel(QAbstractItemModel* model)
+void SearchTreeView::setModel(SearchModel* model)
 {
     QTreeView::setModel(model);
     setColumnWidth(1, 300); //Default second column to a more useful width
+}
+
+void SearchTreeView::itemDoubleClicked(QModelIndex item)
+{
+    QModelIndex nameIndex = item.sibling(item.row(), SearchItem::Name);
+    QModelIndex typeIndex = item.sibling(item.row(), SearchItem::Type);
+    if (!nameIndex.isValid() || !typeIndex.isValid())
+        return;
+
+    QString url = nameIndex.data(SearchItem::DataRole).toString();
+    QString type = typeIndex.data(SearchItem::DataRole).toString();
+    QString name = nameIndex.data(Qt::DisplayRole).toString();
+    QIcon icon = nameIndex.data(Qt::DecorationRole).value<QIcon>();
+    emit openItem(url, type, name, icon);
 }
 
 #include "searchtreeview.moc"

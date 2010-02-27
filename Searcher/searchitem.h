@@ -27,6 +27,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 struct SearchItem
 {
+    enum SearchItemRoles
+    {
+        DataRole = Qt::UserRole,
+    };
+    enum SearchItemColumns
+    {
+        Score = 0,
+        Name = 1,
+        Size = 2,
+        Type = 3,
+        Modified = 4
+    };
     SearchItem() : url(""), score(0), size(0), modified(), type("") { }
     SearchItem(SearchItem* other)
     : url(other->url), score(other->score),
@@ -53,22 +65,31 @@ struct SearchItem
         {
             switch (column)
             {
-                case 0:
+                case Score:
                     return QVariant( QString::number(score) + "%" );
-                case 1:
+                case Name:
                     return QVariant( QFileInfo(url).fileName() );
-                case 2:
+                case Size:
                     return QVariant( humanReadableForBytes(size) );
-                case 3:
+                case Type:
                     return QVariant( type );
-                case 4:
+                case Modified:
                     return QVariant( modified );
             }
         }
         else if (role == Qt::DecorationRole)
         {
-            if (column == 1)
+            if (column == Name)
                 return QVariant( icon );
+        }
+        else if (role == DataRole)
+        {
+            if (column == Name)
+                return QVariant( url );
+            if (column == Size)
+                return QVariant( size );
+            if (column == Type)
+                return QVariant( type.remove(" File") );
         }
 
         return QVariant();
@@ -118,7 +139,8 @@ struct SearchItem
 
     bool operator<(const SearchItem& other) const
     {
-        return score < other.score;
+        //Yeah, it's called a lazy inverse sort, since I can't just pass a bool to qSort
+        return score > other.score;
     }
 
 private:
@@ -143,7 +165,6 @@ private:
             return QLocale().toString(bytes / kb) + QString::fromLatin1(" KB");
         return QLocale().toString(bytes) + QString::fromLatin1(" bytes");
     }
-
 };
 
 #endif

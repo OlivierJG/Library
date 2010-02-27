@@ -13,7 +13,10 @@ set(Searcher_SRCS
     searcher.cpp
     main.cpp
     searchthread.cpp
+    embeddedviewtabber.cpp
 )
 qt4_automoc(${Searcher_SRCS})
 add_executable(Searcher ${Searcher_SRCS})
 target_link_libraries(Searcher xapian ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY})
+
+add_subdirectory(EmbeddedViewCreators)

@@ -19,7 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <QtGui/QLineEdit>
 
-
+//Horrible hack needed to display that greyed out text when it's empty and without focus
+//Can get rid of it with Qt 4.7 which has this feature already
 class MyLineEdit : public QLineEdit
 {
 public:

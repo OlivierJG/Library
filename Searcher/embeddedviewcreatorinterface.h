@@ -15,26 +15,21 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef SEARCHTREEVIEW_H
-#define SEARCHTREEVIEW_H
+#ifndef EMBEDDEDVIEWCREATORINTERFACE_H
+#define EMBEDDEDVIEWCREATORINTERFACE_H
 
-#include <QtGui/QTreeView>
-#include <QApplication>
-#include <QEvent>
+#include <QtCore/QStringList>
 
-#include "searchmodel.h"
-#include "searchitem.h"
+using namespace std;
 
-class SearchTreeView : public QTreeView
+class EmbeddedViewCreatorInterface
 {
-Q_OBJECT
-public:
-    virtual void setModel(SearchModel* model);
-    SearchTreeView(QWidget* parent = 0);
-signals:
-    void openItem(QString url, QString type, QString displayName, QIcon icon);
-private slots:
-    void itemDoubleClicked(QModelIndex item);
+    public:
+        virtual ~EmbeddedViewCreatorInterface() {}
+        virtual QStringList handledMimeTypes() = 0;
+        virtual QWidget* createViewForFile(QString url, QWidget* parent) = 0;
 };
 
-#endif // SEARCHTREEVIEW_H
+Q_DECLARE_INTERFACE(EmbeddedViewCreatorInterface, "app.searcher.Plugin.EmbeddedViewCreatorInterface/1.0");
+
+#endif // EMBEDDEDVIEWCREATORINTERFACE_H

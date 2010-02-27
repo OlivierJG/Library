@@ -14,27 +14,20 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#ifndef HTMLVIEWCREATOR_H
+#define HTMLVIEWCREATOR_H
+#include <QObject>
+#include <qplugin.h>
+#include <QTextBrowser>
+#include <../embeddedviewcreatorinterface.h>
 
-#ifndef SEARCHTREEVIEW_H
-#define SEARCHTREEVIEW_H
-
-#include <QtGui/QTreeView>
-#include <QApplication>
-#include <QEvent>
-
-#include "searchmodel.h"
-#include "searchitem.h"
-
-class SearchTreeView : public QTreeView
+class HtmlViewCreator : public QObject, public EmbeddedViewCreatorInterface
 {
 Q_OBJECT
+Q_INTERFACES(EmbeddedViewCreatorInterface)
 public:
-    virtual void setModel(SearchModel* model);
-    SearchTreeView(QWidget* parent = 0);
-signals:
-    void openItem(QString url, QString type, QString displayName, QIcon icon);
-private slots:
-    void itemDoubleClicked(QModelIndex item);
+    virtual QStringList handledMimeTypes();
+    virtual QWidget* createViewForFile(QString url, QWidget* parent);
 };
 
-#endif // SEARCHTREEVIEW_H
+#endif // HTMLVIEWCREATOR_H
