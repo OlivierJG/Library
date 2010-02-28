@@ -42,10 +42,11 @@ public:
     void finish();
 signals:
     void resultCountChanged(int newCount);
+    void searchStarted();
+    void searchEnded();
 private:
     void run();
     void clearAllItems();
-    void filterItems();
     void searchForItems();
     SearchItem searchItemFromFile(QString filePath, int score);
 
@@ -55,13 +56,11 @@ private:
     Xapian::MSet m_xapianMatchSet;
     QFileIconProvider m_iconProvider;
     mutable QMutex m_foundItemsMutex;
-    mutable QMutex m_searchTextMutex;
-    mutable QMutex m_filterTextMutex;
+    mutable QMutex m_searchAndFilterTextMutex;
     QString m_searchText; //Modified outside of thread, rw lock
     QString m_filterText; //Modified outside of thread, rw lock
     QString m_filesPath;
     QList<SearchItem> m_foundItems; //Read outside of thread, w lock
-    QList<SearchItem> m_filteredItems;
     //Modified outside of thread, but no need to lock
     volatile bool m_finished;
     volatile bool m_searchTextChanged;

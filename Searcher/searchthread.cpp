@@ -21,6 +21,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 const int RESULT_BURST_COUNT = 50;
 //When searching, display at most this many results
 const int MAX_RESULT_COUNT = 500;
+const int SHORT_SLEEP = 10;
+const int LONG_SLEEP = 150;
 
 SearchThread::SearchThread(QString dbPath, QString filesPath, QObject* parent):
 QThread(parent),
@@ -46,17 +48,10 @@ void SearchThread::run()
         if (m_finished)
             return;
 
-        if (m_searchTextChanged)
+        if (m_searchTextChanged || m_filterTextChanged)
         {
             clearAllItems();
-            m_searchTextChanged = false;
             searchForItems();
-        }
-
-        if (m_filterTextChanged)
-        {
-            m_filterTextChanged = false;
-            filterItems();
         }
 
         msleep(10); //No need to hammer the processor
@@ -65,64 +60,43 @@ void SearchThread::run()
 
 void SearchThread::clearAllItems()
 {
-    QMutexLocker locker(&m_foundItemsMutex);
-    m_foundItems.clear();
-    m_filteredItems.clear();
-    //Looks like flicker, no need
-    //emit resultCountChanged(m_foundItems.size());
-}
-
-void SearchThread::filterItems()
-{
-    int curItems = m_foundItems.size();
-    QString filterText;
-    {
-        QMutexLocker locker(&m_filterTextMutex);
-        filterText = m_filterText;
-    }
-    //First remove non-matching items
-    for (int i = m_foundItems.size() - 1; i >= 0 ; --i)
-    {
-        if (!m_foundItems[i].passesFilter(filterText))
-        {
-            QMutexLocker locker(&m_foundItemsMutex);
-            m_filteredItems.append(m_foundItems.takeAt(i));
-        }
-    }
-    //Then check that filtered items should remain filtered
-    for (int i = m_filteredItems.size() - 1; i >= 0; --i)
-    {
-        if (m_filteredItems[i].passesFilter(filterText))
-        {
-            QMutexLocker locker(&m_foundItemsMutex);
-            m_foundItems.append(m_filteredItems.takeAt(i));
-        }
-    }
-
-    if(m_foundItems.size() > 1)
     {
         QMutexLocker locker(&m_foundItemsMutex);
-        qSort(m_foundItems.begin(), m_foundItems.end());
+        m_foundItems.clear();
     }
-    //Notify if changed
-    if (curItems != m_foundItems.size())
-        emit resultCountChanged(m_foundItems.size());
+    //Don't emit resultCountChanged, looks like flicker since immediately after clearing it gets filled again
+    //emit resultCountChanged(m_foundItems.size());
+    //sleep(10);
 }
 
 void SearchThread::searchForItems()
 {
     Xapian::Query xapianQuery;
     {
-        QMutexLocker searchTextLocker(&m_searchTextMutex);
+        QMutexLocker searchTextLocker(&m_searchAndFilterTextMutex);
         xapianQuery = m_xapianQueryParser.parse_query(m_searchText.toStdString());
     }
 
     m_xapianEnquire.set_query(xapianQuery);
-    m_xapianMatchSet = m_xapianEnquire.get_mset(0, m_xapianDb.get_doccount());
+
+    if (m_searchTextChanged)
+        m_xapianMatchSet = m_xapianEnquire.get_mset(0, m_xapianDb.get_doccount());
+
+    m_filterTextChanged = false;
+    m_searchTextChanged = false;
+
+    emit searchStarted();
 
     Xapian::MSetIterator i;
-    for (i = m_xapianMatchSet.begin(); i != m_xapianMatchSet.end(); ++i) {
-        if (m_searchTextChanged || m_finished || (m_foundItems.size() + m_filteredItems.size()) == MAX_RESULT_COUNT)
+    int filteredCount = 0;
+    for (i = m_xapianMatchSet.begin(); i != m_xapianMatchSet.end(); ++i)
+    {
+
+        //Test that current state is still valid
+        if (m_filterTextChanged ||
+            m_searchTextChanged ||
+            m_finished ||
+            m_foundItems.size() == MAX_RESULT_COUNT)
             break;
 
         Xapian::Document doc = i.get_document();
@@ -130,26 +104,40 @@ void SearchThread::searchForItems()
 
         {
             QMutexLocker itemsLocker(&m_foundItemsMutex);
-            QMutexLocker filterTextLocker(&m_filterTextMutex);
+            QMutexLocker filterTextLocker(&m_searchAndFilterTextMutex);
             SearchItem newItem = searchItemFromFile(url, (int)i.get_percent());
             if (newItem.passesFilter(m_filterText))
                 m_foundItems << newItem;
             else
-                m_filteredItems << newItem;
+                ++filteredCount;
         }
 
-        if (m_foundItems.size() % RESULT_BURST_COUNT == 0)
+        //Sometimes thousands of results must be searched only to filter tens, filteredCount is included
+        //to make sure that it doesn't go through all the results before updating the UI
+        if (m_foundItems.size() > 0 && m_foundItems.size() % RESULT_BURST_COUNT == 0)
         {
             emit resultCountChanged(m_foundItems.size());
-             //Allow time for thread owner to respond to changes
+
+            //Allow time for thread owner to respond to changes
             if (m_foundItems.size() == RESULT_BURST_COUNT)
-                msleep(150); //wait longer on the first to reduce flicker
-            else
-                msleep(10);
+                msleep(LONG_SLEEP); //wait longer on the first to reduce flicker
+            else if (m_foundItems.size() > RESULT_BURST_COUNT)
+                msleep(SHORT_SLEEP);
+        }
+        else if (filteredCount > 0 && filteredCount % RESULT_BURST_COUNT == 0)
+        {
+            emit resultCountChanged(m_foundItems.size());
+
+            if (filteredCount == RESULT_BURST_COUNT)
+                msleep(LONG_SLEEP);
+            else if (filteredCount > RESULT_BURST_COUNT)
+                msleep(SHORT_SLEEP);
         }
     }
 
     emit resultCountChanged(m_foundItems.size());
+
+    emit searchEnded();
 }
 
 void SearchThread::finish()
@@ -185,7 +173,7 @@ SearchItem SearchThread::getSearchResult(int resultIndex) const
 
 void SearchThread::setSearchText(QString searchText)
 {
-    QMutexLocker locker(&m_searchTextMutex);
+    QMutexLocker locker(&m_searchAndFilterTextMutex);
     if (searchText != m_searchText)
     {
         m_searchText = searchText;
@@ -195,7 +183,7 @@ void SearchThread::setSearchText(QString searchText)
 
 void SearchThread::setFilterText(QString filterText)
 {
-    QMutexLocker locker(&m_filterTextMutex);
+    QMutexLocker locker(&m_searchAndFilterTextMutex);
     if (filterText != m_filterText)
     {
         m_filterText = filterText;
