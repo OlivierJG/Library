@@ -100,10 +100,8 @@ QVariant SearchModel::headerData(int section, Qt::Orientation orientation, int r
 {
     if (role == Qt::DisplayRole)
         return QVariant(MODEL_HEADERS[section]);
-    else if (role == Qt::DecorationRole && section == m_filterColumn)
-        return QIcon::fromTheme("edit-find");
-    else
-        return QVariant();
+
+    return QVariant();
 }
 
 bool SearchModel::hasChildren(const QModelIndex& parent) const

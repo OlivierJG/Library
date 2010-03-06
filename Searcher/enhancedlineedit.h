@@ -14,17 +14,17 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-#ifndef MYLINEEDIT_H
-#define MYLINEEDIT_H
+#ifndef ENHANCEDLINEEDIT_H
+#define ENHANCEDLINEEDIT_H
 
 #include <QtGui/QLineEdit>
 
 //Horrible hack needed to display that greyed out text when it's empty and without focus
 //Can get rid of it with Qt 4.7 which has this feature already
-class MyLineEdit : public QLineEdit
+class EnhancedLineEdit : public QLineEdit
 {
 public:
-    MyLineEdit(QString placeHolderText, QWidget* parent = 0);
+    EnhancedLineEdit(QString placeHolderText, QWidget* parent = 0);
 
     virtual QString text();
     virtual void setText(QString text);
@@ -46,4 +46,4 @@ private:
     bool m_showingPlaceholder;
 };
 
-#endif // MYLINEEDIT_H
+#endif // ENHANCEDLINEEDIT_H

@@ -16,12 +16,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include <QApplication>
 
-#include "mylineedit.h"
+#include "enhancedlineedit.h"
 #include <QPen>
 #include <QPaintEvent>
 #include <qstyle.h>
 
-MyLineEdit::MyLineEdit(QString placeHolderText, QWidget* parent): QLineEdit(parent) {
+EnhancedLineEdit::EnhancedLineEdit(QString placeHolderText, QWidget* parent): QLineEdit(parent) {
     m_placeholderText = placeHolderText;
     m_placeholderFont = font();
     m_placeholderFont.setItalic(true);
@@ -35,7 +35,7 @@ MyLineEdit::MyLineEdit(QString placeHolderText, QWidget* parent): QLineEdit(pare
     showPlaceholder(!hasFocus());
 }
 
-void MyLineEdit::setText(QString text)
+void EnhancedLineEdit::setText(QString text)
 {
     if (!hasFocus() && text.isEmpty())
         showPlaceholder(true);
@@ -43,7 +43,7 @@ void MyLineEdit::setText(QString text)
     QLineEdit::setText(text);
 }
 
-QString MyLineEdit::text()
+QString EnhancedLineEdit::text()
 {
     if (m_showingPlaceholder)
         return "";
@@ -51,7 +51,7 @@ QString MyLineEdit::text()
         return QLineEdit::text();
 }
 
-void MyLineEdit::showPlaceholder(bool show)
+void EnhancedLineEdit::showPlaceholder(bool show)
 {
     blockSignals(true);
     if (show)
@@ -72,13 +72,13 @@ void MyLineEdit::showPlaceholder(bool show)
     m_showingPlaceholder = show;
 }
 
-void MyLineEdit::focusInEvent(QFocusEvent* event)
+void EnhancedLineEdit::focusInEvent(QFocusEvent* event)
 {
     showPlaceholder(false);
     QLineEdit::focusInEvent(event);
 }
 
-void MyLineEdit::focusOutEvent(QFocusEvent* event)
+void EnhancedLineEdit::focusOutEvent(QFocusEvent* event)
 {
     if (text().isEmpty())
         showPlaceholder(true);

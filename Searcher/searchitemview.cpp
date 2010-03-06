@@ -15,31 +15,33 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "searchtreeview.h"
+#include "searchitemview.h"
 
-SearchTreeView::SearchTreeView(QWidget* parent): QTreeView(parent)
+SearchItemView::SearchItemView(SearchModel* model, QWidget* parent): BaseItemView(parent)
 {
-    connect(this, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(itemDoubleClicked(QModelIndex)));
+    setModel(model);
 }
 
-void SearchTreeView::setModel(SearchModel* model)
+void SearchItemView::setModel(QAbstractItemModel *model)
 {
     QTreeView::setModel(model);
     setColumnWidth(1, 300); //Default second column to a more useful width
 }
 
-void SearchTreeView::itemDoubleClicked(QModelIndex item)
+BaseItemView::BaseItem SearchItemView::baseItemFromIndex(QModelIndex index)
 {
-    QModelIndex nameIndex = item.sibling(item.row(), SearchItem::Name);
-    QModelIndex typeIndex = item.sibling(item.row(), SearchItem::Type);
+    QModelIndex nameIndex = index.sibling(index.row(), SearchItem::Name);
+    QModelIndex typeIndex = index.sibling(index.row(), SearchItem::Type);
     if (!nameIndex.isValid() || !typeIndex.isValid())
-        return;
+        return BaseItem();
 
-    QString url = nameIndex.data(SearchItem::DataRole).toString();
-    QString type = typeIndex.data(SearchItem::DataRole).toString();
-    QString name = nameIndex.data(Qt::DisplayRole).toString();
-    QIcon icon = nameIndex.data(Qt::DecorationRole).value<QIcon>();
-    emit openItem(url, type, name, icon);
+    BaseItem item;
+    item.url = nameIndex.data(SearchItem::DataRole).toString();
+    item.type = typeIndex.data(SearchItem::DataRole).toString();
+    item.displayName = nameIndex.data(Qt::DisplayRole).toString();
+    item.icon = nameIndex.data(Qt::DecorationRole).value<QIcon>();
+
+    return item;
 }
 
-#include "searchtreeview.moc"
+#include "searchitemview.moc"

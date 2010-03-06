@@ -14,27 +14,22 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#ifndef FILEITEMVIEW_H
+#define FILEITEMVIEW_H
 
-#ifndef SEARCHTREEVIEW_H
-#define SEARCHTREEVIEW_H
+#include <QFileSystemModel>
+#include "baseitemview.h"
 
-#include <QtGui/QTreeView>
-#include <QApplication>
-#include <QEvent>
-
-#include "searchmodel.h"
-#include "searchitem.h"
-
-class SearchTreeView : public QTreeView
+class FileItemView : public BaseItemView
 {
 Q_OBJECT
 public:
-    virtual void setModel(SearchModel* model);
-    SearchTreeView(QWidget* parent = 0);
-signals:
-    void openItem(QString url, QString type, QString displayName, QIcon icon);
-private slots:
-    void itemDoubleClicked(QModelIndex item);
+    FileItemView(QString filesPath, QFileSystemModel* model, QWidget* parent = 0);
+protected:
+    virtual void setModel(QAbstractItemModel* model);
+    virtual BaseItem baseItemFromIndex(QModelIndex index);
+private:
+    QString m_filesPath;
 };
 
-#endif // SEARCHTREEVIEW_H
+#endif // FILEITEMVIEW_H

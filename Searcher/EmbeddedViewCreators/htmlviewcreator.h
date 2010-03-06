@@ -19,6 +19,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <QObject>
 #include <qplugin.h>
 #include <QTextBrowser>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QSyntaxHighlighter>
+
 #include <../embeddedviewcreatorinterface.h>
 
 class HtmlViewCreator : public QObject, public EmbeddedViewCreatorInterface
@@ -27,7 +31,43 @@ Q_OBJECT
 Q_INTERFACES(EmbeddedViewCreatorInterface)
 public:
     virtual QStringList handledMimeTypes();
-    virtual QWidget* createViewForFile(QString url, QWidget* parent);
+    virtual QWidget* createViewForFile(QUrl url, QWidget* parent);
+};
+
+class HtmlViewSearchResultHighlighter : public QSyntaxHighlighter
+{
+public:
+    HtmlViewSearchResultHighlighter(QTextEdit* parent) : QSyntaxHighlighter(parent) {};
+    void setHighlightedText(QString text);
+protected:
+    virtual void highlightBlock(const QString& text);
+private:
+    QString m_textToHighlight;
+};
+
+class HtmlView : public QWidget
+{
+Q_OBJECT
+public:
+    HtmlView(QUrl url, QWidget* parent = 0);
+private:
+    enum FindOptions
+    {
+        Previous,
+        Next,
+        Extend,
+    };
+    QTextBrowser *m_textBrowser;
+    QLineEdit *m_findText;
+    QPushButton *m_findNext;
+    QPushButton *m_findPrevious;
+    HtmlViewSearchResultHighlighter *m_searchResultHighlighter;
+
+    bool findText(QString text, FindOptions options);
+public slots:
+    void findTextChanged(QString);
+    void findNextPressed();
+    void findPreviousPressed();
 };
 
 #endif // HTMLVIEWCREATOR_H

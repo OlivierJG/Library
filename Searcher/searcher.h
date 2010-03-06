@@ -26,8 +26,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "queryresultview.h"
 #include "searchmodel.h"
-#include "mylineedit.h"
-#include "searchtreeview.h"
+#include "enhancedlineedit.h"
+#include "searchitemview.h"
+#include "fileitemview.h"
 #include "embeddedviewcreatorinterface.h"
 #include "embeddedviewtabber.h"
 
@@ -43,11 +44,11 @@ private:
     void updateCurrentViewMode();
     void loadEmbeddedViewCreators();
 
-    MyLineEdit* m_searchText;
-    MyLineEdit* m_filterText;
+    EnhancedLineEdit* m_searchText;
+    EnhancedLineEdit* m_filterText;
     QLabel* m_contextInfo;
-    QTreeView* m_fileSystemTree;
-    SearchTreeView* m_searchTreeView;
+    FileItemView* m_fileItemView;
+    SearchItemView* m_searchItemView;
     EmbeddedViewTabber* m_tabbedFileView;
 
     QFileSystemModel* m_fileSystemModel;
@@ -60,7 +61,7 @@ private slots:
     void searchTextChanged(QString text);
     void filterTextChanged(QString text);
 public slots:
-    void searchResultsOpenItem(QString url, QString type, QString name, QIcon icon);
+    void openItem(QString url, QString type, QString name, QIcon icon, bool inBackground = false);
 };
 
 #endif // Searcher_H

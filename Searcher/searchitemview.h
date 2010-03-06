@@ -14,5 +14,24 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-#include "filebrowser.h"
 
+#ifndef SEARCHITEMVIEW_H
+#define SEARCHITEMVIEW_H
+
+#include <QApplication>
+#include <QEvent>
+
+#include "searchmodel.h"
+#include "baseitemview.h"
+
+class SearchItemView : public BaseItemView
+{
+Q_OBJECT
+public:
+    SearchItemView(SearchModel *model, QWidget* parent = 0);
+protected:
+    virtual BaseItem baseItemFromIndex(QModelIndex index);
+    virtual void setModel(QAbstractItemModel* model);
+};
+
+#endif // SEARCHITEMVIEW_H

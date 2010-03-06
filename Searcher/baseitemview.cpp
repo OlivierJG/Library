@@ -14,17 +14,32 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-#ifndef FILEBROWSER_H
-#define FILEBROWSER_H
 
-#include <QtGui/QTreeView>
+#include "baseitemview.h"
 
-
-class FileBrowser : public QTreeView
+BaseItemView::BaseItemView(QWidget* parent): QTreeView(parent)
 {
-public:
-    FileBrowser(QWidget* parent = 0);
-    
-};
+    connect(this, SIGNAL(activated(QModelIndex)), this, SLOT(itemActivated(QModelIndex)));
+}
 
-#endif // FILEBROWSER_H
+void BaseItemView::itemActivated(QModelIndex index)
+{
+    openIndex(index);
+}
+
+void BaseItemView::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::MidButton)
+        openIndex(indexAt(event->pos()), true);
+
+    QTreeView::mousePressEvent(event);
+}
+
+void BaseItemView::openIndex(QModelIndex index, bool inBackground)
+{
+    BaseItem item = baseItemFromIndex(index);
+    if (!item.url.isEmpty())
+        emit openItem(item.url, item.type, item.displayName, item.icon, inBackground);
+}
+
+#include "baseitemview.moc"

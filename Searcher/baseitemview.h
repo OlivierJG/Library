@@ -15,21 +15,33 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef EMBEDDEDVIEWCREATORINTERFACE_H
-#define EMBEDDEDVIEWCREATORINTERFACE_H
+#ifndef BASEITEMVIEW_H
+#define BASEITEMVIEW_H
 
-#include <QtCore/QStringList>
-#include <QWidget>
-#include <QUrl>
+#include <QTreeView>
+#include <QMouseEvent>
 
-class EmbeddedViewCreatorInterface
+class BaseItemView : public QTreeView
 {
+Q_OBJECT
 public:
-    virtual ~EmbeddedViewCreatorInterface() {}
-    virtual QStringList handledMimeTypes() = 0;
-    virtual QWidget* createViewForFile(QUrl url, QWidget* parent) = 0;
+    BaseItemView(QWidget* parent = 0);
+protected:
+    struct BaseItem
+    {
+        QString url;
+        QString type;
+        QString displayName;
+        QIcon icon;
+    };
+    virtual BaseItem baseItemFromIndex(QModelIndex index) = 0;
+    virtual void mousePressEvent(QMouseEvent* event);
+private:
+    void openIndex(QModelIndex index, bool inBackground = false);
+signals:
+    void openItem(QString url, QString type, QString displayName, QIcon icon, bool inBackground = false);
+private slots:
+    void itemActivated(QModelIndex item);
 };
 
-Q_DECLARE_INTERFACE(EmbeddedViewCreatorInterface, "app.searcher.Plugin.EmbeddedViewCreatorInterface/1.0");
-
-#endif // EMBEDDEDVIEWCREATORINTERFACE_H
+#endif // BASEITEMVIEW_H
